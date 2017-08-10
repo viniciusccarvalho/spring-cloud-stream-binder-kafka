@@ -56,6 +56,7 @@ import org.springframework.util.StringUtils;
  * @author Gary Russell
  * @author Ilayaperumal Gopinathan
  * @author Simon Flandergan
+ * @author Vinicius Carvalho
  */
 public class KafkaTopicProvisioner implements ProvisioningProvider<ExtendedConsumerProperties<KafkaConsumerProperties>,
 		ExtendedProducerProperties<KafkaProducerProperties>>, InitializingBean {
@@ -112,10 +113,10 @@ public class KafkaTopicProvisioner implements ProvisioningProvider<ExtendedConsu
 					this.configurationProperties.getZkConnectionTimeout(),
 					JaasUtils.isZkSecurityEnabled());
 			int partitions = adminUtilsOperation.partitionSize(name, zkUtils);
-			return new KafkaProducerDestination(name, partitions);
+			return new KafkaProducerDestination(name, properties, partitions);
 		}
 		else {
-			return new KafkaProducerDestination(name);
+			return new KafkaProducerDestination(name, properties);
 		}
 	}
 
@@ -140,11 +141,11 @@ public class KafkaTopicProvisioner implements ProvisioningProvider<ExtendedConsu
 				String dlqTopic = StringUtils.hasText(properties.getExtension().getDlqName()) ?
 						properties.getExtension().getDlqName() : "error." + name + "." + group;
 				createTopicAndPartitions(dlqTopic, partitions, properties.getExtension().isAutoRebalanceEnabled());
-				return new KafkaConsumerDestination(name, partitions, dlqTopic);
+				return new KafkaConsumerDestination(name,properties, partitions, dlqTopic);
 			}
-			return new KafkaConsumerDestination(name, partitions);
+			return new KafkaConsumerDestination(name,properties, partitions);
 		}
-		return new KafkaConsumerDestination(name);
+		return new KafkaConsumerDestination(name, properties);
 	}
 
 	private void createTopicsIfAutoCreateEnabledAndAdminUtilsPresent(final String topicName, final int partitionCount,
@@ -272,19 +273,27 @@ public class KafkaTopicProvisioner implements ProvisioningProvider<ExtendedConsu
 		}
 	}
 
-	private static final class KafkaProducerDestination implements ProducerDestination {
+	private static final class KafkaProducerDestination implements ProducerDestination<ExtendedProducerProperties<KafkaProducerProperties>> {
 
 		private final String producerDestinationName;
 
 		private final int partitions;
 
-		KafkaProducerDestination(String destinationName) {
-			this(destinationName, 0);
+		private final ExtendedProducerProperties<KafkaProducerProperties> properties;
+
+		KafkaProducerDestination(String destinationName, ExtendedProducerProperties<KafkaProducerProperties> properties) {
+			this(destinationName, properties,0);
 		}
 
-		KafkaProducerDestination(String destinationName, Integer partitions) {
+		KafkaProducerDestination(String destinationName, ExtendedProducerProperties<KafkaProducerProperties> properties, Integer partitions) {
 			this.producerDestinationName = destinationName;
 			this.partitions = partitions;
+			this.properties = properties;
+		}
+
+		@Override
+		public ExtendedProducerProperties<KafkaProducerProperties> getProperties() {
+			return this.properties;
 		}
 
 		@Override
@@ -306,7 +315,7 @@ public class KafkaTopicProvisioner implements ProvisioningProvider<ExtendedConsu
 		}
 	}
 
-	private static final class KafkaConsumerDestination implements ConsumerDestination {
+	private static final class KafkaConsumerDestination implements ConsumerDestination<ExtendedConsumerProperties<KafkaConsumerProperties>> {
 
 		private final String consumerDestinationName;
 
@@ -314,23 +323,31 @@ public class KafkaTopicProvisioner implements ProvisioningProvider<ExtendedConsu
 
 		private final String dlqName;
 
-		KafkaConsumerDestination(String consumerDestinationName) {
-			this(consumerDestinationName, 0, null);
+		private final ExtendedConsumerProperties<KafkaConsumerProperties> properties;
+
+		KafkaConsumerDestination(String consumerDestinationName, ExtendedConsumerProperties<KafkaConsumerProperties> properties) {
+			this(consumerDestinationName,properties, 0, null);
 		}
 
-		KafkaConsumerDestination(String consumerDestinationName, int partitions) {
-			this(consumerDestinationName, partitions, null);
+		KafkaConsumerDestination(String consumerDestinationName,ExtendedConsumerProperties<KafkaConsumerProperties> properties, int partitions) {
+			this(consumerDestinationName, properties,partitions, null);
 		}
 
-		KafkaConsumerDestination(String consumerDestinationName, Integer partitions, String dlqName) {
+		KafkaConsumerDestination(String consumerDestinationName, ExtendedConsumerProperties<KafkaConsumerProperties> properties, Integer partitions, String dlqName) {
 			this.consumerDestinationName = consumerDestinationName;
 			this.partitions = partitions;
 			this.dlqName = dlqName;
+			this.properties = properties;
 		}
 
 		@Override
 		public String getName() {
 			return this.consumerDestinationName;
+		}
+
+		@Override
+		public ExtendedConsumerProperties<KafkaConsumerProperties> getProperties() {
+			return this.properties;
 		}
 
 		@Override

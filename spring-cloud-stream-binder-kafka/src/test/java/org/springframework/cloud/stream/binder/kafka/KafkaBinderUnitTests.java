@@ -22,12 +22,14 @@ import java.util.Map;
 
 import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.junit.Test;
+import org.mockito.Mockito;
 
 import org.springframework.cloud.stream.binder.ExtendedConsumerProperties;
 import org.springframework.cloud.stream.binder.kafka.admin.AdminUtilsOperation;
 import org.springframework.cloud.stream.binder.kafka.properties.KafkaBinderConfigurationProperties;
 import org.springframework.cloud.stream.binder.kafka.properties.KafkaConsumerProperties;
 import org.springframework.cloud.stream.binder.kafka.provisioning.KafkaTopicProvisioner;
+import org.springframework.cloud.stream.error.BinderErrorConfigurer;
 import org.springframework.integration.test.util.TestUtils;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -47,7 +49,7 @@ public class KafkaBinderUnitTests {
 		KafkaTopicProvisioner provisioningProvider = new KafkaTopicProvisioner(binderConfigurationProperties,
 				adminUtilsOperation);
 		KafkaMessageChannelBinder binder = new KafkaMessageChannelBinder(binderConfigurationProperties,
-				provisioningProvider);
+				provisioningProvider, Mockito.mock(BinderErrorConfigurer.class));
 		KafkaConsumerProperties consumerProps = new KafkaConsumerProperties();
 		ExtendedConsumerProperties<KafkaConsumerProperties> ecp =
 				new ExtendedConsumerProperties<KafkaConsumerProperties>(consumerProps);

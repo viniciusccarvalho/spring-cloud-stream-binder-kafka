@@ -44,6 +44,7 @@ import org.springframework.cloud.stream.binder.kafka.properties.KafkaConsumerPro
 import org.springframework.cloud.stream.binder.kafka.properties.KafkaExtendedBindingProperties;
 import org.springframework.cloud.stream.binder.kafka.properties.KafkaProducerProperties;
 import org.springframework.cloud.stream.binder.kafka.provisioning.KafkaTopicProvisioner;
+import org.springframework.cloud.stream.error.BinderErrorConfigurer;
 import org.springframework.cloud.stream.provisioning.ConsumerDestination;
 import org.springframework.cloud.stream.provisioning.ProducerDestination;
 import org.springframework.context.Lifecycle;
@@ -87,6 +88,7 @@ import org.springframework.util.concurrent.ListenableFutureCallback;
  * @author Soby Chacko
  * @author Henryk Konsek
  * @author Doug Saus
+ * @author Vinicius Carvalho
  */
 public class KafkaMessageChannelBinder extends
 		AbstractMessageChannelBinder<ExtendedConsumerProperties<KafkaConsumerProperties>,
@@ -102,8 +104,8 @@ public class KafkaMessageChannelBinder extends
 	private KafkaExtendedBindingProperties extendedBindingProperties = new KafkaExtendedBindingProperties();
 
 	public KafkaMessageChannelBinder(KafkaBinderConfigurationProperties configurationProperties,
-			KafkaTopicProvisioner provisioningProvider) {
-		super(false, headersToMap(configurationProperties), provisioningProvider);
+			KafkaTopicProvisioner provisioningProvider, BinderErrorConfigurer errorConfigurer) {
+		super(false, headersToMap(configurationProperties), provisioningProvider, errorConfigurer);
 		this.configurationProperties = configurationProperties;
 	}
 
@@ -285,73 +287,11 @@ public class KafkaMessageChannelBinder extends
 		final KafkaMessageDrivenChannelAdapter<?, ?> kafkaMessageDrivenChannelAdapter = new KafkaMessageDrivenChannelAdapter<>(
 				messageListenerContainer);
 		kafkaMessageDrivenChannelAdapter.setBeanFactory(this.getBeanFactory());
-		ErrorInfrastructure errorInfrastructure = registerErrorInfrastructure(destination, consumerGroup,
-				extendedConsumerProperties);
-		if (extendedConsumerProperties.getMaxAttempts() > 1) {
-			kafkaMessageDrivenChannelAdapter.setRetryTemplate(buildRetryTemplate(extendedConsumerProperties));
-			kafkaMessageDrivenChannelAdapter.setRecoveryCallback(errorInfrastructure.getRecoverer());
-		}
-		else {
-			kafkaMessageDrivenChannelAdapter.setErrorChannel(errorInfrastructure.getErrorChannel());
-		}
+
 		return kafkaMessageDrivenChannelAdapter;
 	}
 
-	@Override
-	protected ErrorMessageStrategy getErrorMessageStrategy() {
-		return new RawRecordHeaderErrorMessageStrategy();
-	}
 
-	@Override
-	protected MessageHandler getErrorMessageHandler(final ConsumerDestination destination, final String group,
-			final ExtendedConsumerProperties<KafkaConsumerProperties> extendedConsumerProperties) {
-		if (extendedConsumerProperties.getExtension().isEnableDlq()) {
-			DefaultKafkaProducerFactory<byte[], byte[]> producerFactory = getProducerFactory(
-					new ExtendedProducerProperties<>(new KafkaProducerProperties()));
-			final KafkaTemplate<byte[], byte[]> kafkaTemplate = new KafkaTemplate<>(producerFactory);
-			return new MessageHandler() {
-
-				@Override
-				public void handleMessage(Message<?> message) throws MessagingException {
-					final ConsumerRecord<?, ?> record = message.getHeaders()
-							.get(KafkaMessageDrivenChannelAdapter.KAFKA_RAW_DATA, ConsumerRecord.class);
-					final byte[] key = record.key() != null ? Utils.toArray(ByteBuffer.wrap((byte[]) record.key()))
-							: null;
-					final byte[] payload = record.value() != null
-							? Utils.toArray(ByteBuffer.wrap((byte[]) record.value())) : null;
-					String dlqName = StringUtils.hasText(extendedConsumerProperties.getExtension().getDlqName())
-							? extendedConsumerProperties.getExtension().getDlqName()
-							: "error." + destination.getName() + "." + group;
-					ListenableFuture<SendResult<byte[], byte[]>> sentDlq = kafkaTemplate.send(dlqName,
-							record.partition(), key, payload);
-					sentDlq.addCallback(new ListenableFutureCallback<SendResult<byte[], byte[]>>() {
-						StringBuilder sb = new StringBuilder().append(" a message with key='")
-								.append(toDisplayString(ObjectUtils.nullSafeToString(key), 50)).append("'")
-								.append(" and payload='")
-								.append(toDisplayString(ObjectUtils.nullSafeToString(payload), 50))
-								.append("'").append(" received from ")
-								.append(record.partition());
-
-						@Override
-						public void onFailure(Throwable ex) {
-							KafkaMessageChannelBinder.this.logger.error(
-									"Error sending to DLQ " + sb.toString(), ex);
-						}
-
-						@Override
-						public void onSuccess(SendResult<byte[], byte[]> result) {
-							if (KafkaMessageChannelBinder.this.logger.isDebugEnabled()) {
-								KafkaMessageChannelBinder.this.logger.debug(
-										"Sent to DLQ " + sb.toString());
-							}
-						}
-
-					});
-				}
-			};
-		}
-		return null;
-	}
 
 	private ConsumerFactory<?, ?> createKafkaConsumerFactory(boolean anonymous, String consumerGroup,
 			ExtendedConsumerProperties<KafkaConsumerProperties> consumerProperties) {
@@ -399,12 +339,7 @@ public class KafkaMessageChannelBinder extends
 		return topicPartitionInitialOffsets;
 	}
 
-	private String toDisplayString(String original, int maxCharacters) {
-		if (original.length() <= maxCharacters) {
-			return original;
-		}
-		return original.substring(0, maxCharacters) + "...";
-	}
+
 
 	private final class ProducerConfigurationMessageHandler extends KafkaProducerMessageHandler<byte[], byte[]>
 			implements Lifecycle {

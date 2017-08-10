@@ -75,6 +75,7 @@ public class KStreamBoundElementFactory extends AbstractBindingTargetFactory<KSt
 	@Override
 	public KStream createInput(String name) {
 		KStream<Object, Object> stream = kStreamBuilder.stream(bindingServiceProperties.getBindingDestination(name));
+
 		ConsumerProperties properties = bindingServiceProperties.getConsumerProperties(name);
 		if (HeaderMode.embeddedHeaders.equals(properties.getHeaderMode())) {
 

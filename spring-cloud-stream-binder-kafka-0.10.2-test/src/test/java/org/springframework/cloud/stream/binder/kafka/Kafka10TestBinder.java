@@ -46,27 +46,15 @@ public class Kafka10TestBinder extends AbstractKafkaTestBinder {
 			KafkaTopicProvisioner provisioningProvider =
 					new KafkaTopicProvisioner(binderConfiguration, adminUtilsOperation);
 			provisioningProvider.afterPropertiesSet();
-
+			KafkaMessageChannelErrorConfigurer errorConfigurer = new KafkaMessageChannelErrorConfigurer(binderConfiguration);
 			KafkaMessageChannelBinder binder = new KafkaMessageChannelBinder(binderConfiguration,
-					provisioningProvider) {
-
-				/*
-				 * Some tests use multiple instance indexes for the same topic; we need to make
-				 * the error infrastructure beans unique.
-				 */
-				@Override
-				protected String errorsBaseName(ConsumerDestination destination, String group,
-						ExtendedConsumerProperties<KafkaConsumerProperties> consumerProperties) {
-					return super.errorsBaseName(destination, group, consumerProperties) + "-"
-							+ consumerProperties.getInstanceIndex();
-				}
-
-			};
+					provisioningProvider, errorConfigurer);
 
 			binder.setCodec(AbstractKafkaTestBinder.getCodec());
 			ProducerListener producerListener = new LoggingProducerListener();
 			binder.setProducerListener(producerListener);
 			AnnotationConfigApplicationContext context = new AnnotationConfigApplicationContext(Config.class);
+			errorConfigurer.setApplicationContext(context);
 			binder.setApplicationContext(context);
 			binder.afterPropertiesSet();
 			this.setBinder(binder);

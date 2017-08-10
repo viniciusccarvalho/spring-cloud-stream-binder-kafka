@@ -37,6 +37,7 @@ import org.springframework.cloud.stream.binder.kafka.KafkaBinderHealthIndicator;
 import org.springframework.cloud.stream.binder.kafka.KafkaBinderJaasInitializerListener;
 import org.springframework.cloud.stream.binder.kafka.KafkaBinderMetrics;
 import org.springframework.cloud.stream.binder.kafka.KafkaMessageChannelBinder;
+import org.springframework.cloud.stream.binder.kafka.KafkaMessageChannelErrorConfigurer;
 import org.springframework.cloud.stream.binder.kafka.admin.AdminUtilsOperation;
 import org.springframework.cloud.stream.binder.kafka.admin.Kafka09AdminUtilsOperation;
 import org.springframework.cloud.stream.binder.kafka.admin.Kafka10AdminUtilsOperation;
@@ -103,11 +104,16 @@ public class KafkaBinderConfiguration {
 	@Bean
 	KafkaMessageChannelBinder kafkaMessageChannelBinder() {
 		KafkaMessageChannelBinder kafkaMessageChannelBinder = new KafkaMessageChannelBinder(
-				this.configurationProperties, provisioningProvider());
+				this.configurationProperties, provisioningProvider(),errorConfigurer());
 		kafkaMessageChannelBinder.setCodec(this.codec);
 		kafkaMessageChannelBinder.setProducerListener(producerListener);
 		kafkaMessageChannelBinder.setExtendedBindingProperties(this.kafkaExtendedBindingProperties);
 		return kafkaMessageChannelBinder;
+	}
+
+	@Bean
+	KafkaMessageChannelErrorConfigurer errorConfigurer(){
+		return new KafkaMessageChannelErrorConfigurer(this.configurationProperties);
 	}
 
 	@Bean

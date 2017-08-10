@@ -221,12 +221,15 @@ public class Kafka_0_10_1_BinderTests extends Kafka_0_10_2_BinderTests {
 		producerProperties.getExtension().getConfiguration().put("schema.registry.url", "http://localhost:8082");
 		producerProperties.setUseNativeEncoding(true);
 		Binding<MessageChannel> producerBinding = binder.bindProducer(testTopicName, moduleOutputChannel, producerProperties);
+		producerBinding.bind();
+
 		ExtendedConsumerProperties<KafkaConsumerProperties> consumerProperties = createConsumerProperties();
 		consumerProperties.getExtension().setAutoRebalanceEnabled(false);
 		consumerProperties.getExtension().getConfiguration().put("value.deserializer", "io.confluent.kafka.serializers.KafkaAvroDeserializer");
 		consumerProperties.getExtension().getConfiguration().put("schema.registry.url", "http://localhost:8082");
 		Binding<MessageChannel> consumerBinding = binder.bindConsumer(testTopicName, "test", moduleInputChannel, consumerProperties);
 		// Let the consumer actually bind to the producer before sending a msg
+		consumerBinding.bind();
 		binderBindUnbindLatency();
 		moduleOutputChannel.send(message);
 		Message<?> inbound = receive(moduleInputChannel);

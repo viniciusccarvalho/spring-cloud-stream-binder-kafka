@@ -155,6 +155,7 @@ public class KStreamBinder extends
 		else {
 			outboundBindTarget.to(name);
 		}
+		
 		return new DefaultBinding<>(name, null, outboundBindTarget, null);
 	}
 

@@ -159,8 +159,10 @@ public abstract class KafkaBinderTests extends
 		String producerName = "dlqTest." + uniqueBindingId + ".0";
 		Binding<MessageChannel> producerBinding = binder.bindProducer(producerName,
 				moduleOutputChannel, producerProperties);
+		producerBinding.bind();
 		Binding<MessageChannel> consumerBinding = binder.bindConsumer(producerName,
 				"testGroup", moduleInputChannel, consumerProperties);
+		consumerBinding.bind();
 
 		ExtendedConsumerProperties<KafkaConsumerProperties> dlqConsumerProperties = createConsumerProperties();
 		dlqConsumerProperties.setMaxAttempts(1);
@@ -195,6 +197,7 @@ public abstract class KafkaBinderTests extends
 
 		Binding<MessageChannel> dlqConsumerBinding = binder.bindConsumer(
 				"error.dlqTest." + uniqueBindingId + ".0.testGroup", null, dlqChannel, dlqConsumerProperties);
+		dlqConsumerBinding.bind();
 		binderBindUnbindLatency();
 		String testMessagePayload = "test." + UUID.randomUUID().toString();
 		Message<String> testMessage = MessageBuilder.withPayload(testMessagePayload).build();
@@ -719,15 +722,19 @@ public abstract class KafkaBinderTests extends
 
 		Binding<MessageChannel> producerBinding1 = binder.bindProducer("foo.x", moduleOutputChannel1,
 				createProducerProperties());
+		producerBinding1.bind();
 		Binding<MessageChannel> producerBinding2 = binder.bindProducer("foo.y", moduleOutputChannel2,
 				createProducerProperties());
+		producerBinding2.bind();
 
 		ExtendedConsumerProperties<KafkaConsumerProperties> consumerProperties = createConsumerProperties();
 		consumerProperties.getExtension().setAutoRebalanceEnabled(false);
 		Binding<MessageChannel> consumerBinding1 = binder.bindConsumer("foo.x", "test", moduleInputChannel,
 				consumerProperties);
+		consumerBinding1.bind();
 		Binding<MessageChannel> consumerBinding2 = binder.bindConsumer("foo.y", "test", moduleInputChannel,
 				consumerProperties);
+		consumerBinding2.bind();
 
 		String testPayload1 = "foo" + UUID.randomUUID().toString();
 		Message<?> message1 = org.springframework.integration.support.MessageBuilder.withPayload(
@@ -769,6 +776,7 @@ public abstract class KafkaBinderTests extends
 		Binding<MessageChannel> producerBinding = binder.bindProducer(
 				"testManualAckSucceedsWhenAutoCommitOffsetIsTurnedOff", moduleOutputChannel,
 				createProducerProperties());
+		producerBinding.bind();
 
 		ExtendedConsumerProperties<KafkaConsumerProperties> consumerProperties = createConsumerProperties();
 		consumerProperties.getExtension().setAutoCommitOffset(false);
@@ -776,6 +784,7 @@ public abstract class KafkaBinderTests extends
 		Binding<MessageChannel> consumerBinding = binder.bindConsumer(
 				"testManualAckSucceedsWhenAutoCommitOffsetIsTurnedOff", "test", moduleInputChannel,
 				consumerProperties);
+		consumerBinding.bind();
 
 		String testPayload1 = "foo" + UUID.randomUUID().toString();
 		Message<?> message1 = org.springframework.integration.support.MessageBuilder.withPayload(
